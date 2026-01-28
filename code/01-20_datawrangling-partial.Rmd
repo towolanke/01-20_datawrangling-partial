@@ -1,0 +1,241 @@
+---
+title: "02 Data wrangling"
+---
+
+# 1) Setup  
+
+```{r Setup, message=F}
+# Loading packages (every time you open R)
+library(readxl) # to read excel files
+library(janitor) # to clean data
+library(dplyr) # wrangling
+library(tidyr) # wrangling
+library(readr) # to export csv
+
+```
+
+
+```{r Reading data}
+soyk = read_xlsx(path ="../data/01_soybeans.xlsx") # using the relative path (../) to import or export data
+
+# Checking first rows
+soyk
+
+# View
+View(soyk)
+```
+
+This study was conducted at four different locations in one year to assess the effect of potassium (K) fertilizer rates on soybean trifoliate K concentration at growth stage R4.  
+
+Each study was a randomized complete block design (RCBD) with K rate as the only treatment factor with levels 0, 50, 100, and 150 lbs K2O/ac.
+
+```{r Glimpse}
+glimpse(soyk) # similar to structure (str)
+```
+
+```{r Summary}
+summary(soyk)
+```
+
+# 2) Data wrangling  
+```{r soyk_1 - clean_names()}
+soyk_1 = clean_names(soyk)
+
+soyk_1
+```
+
+
+```{r soyk_2 - filter()}
+names(soyk_1)
+
+soyk_2 = filter(soyk_1, 
+                k_rate_lbac != 0
+                
+                )
+
+soyk_2
+```
+
+```{r soyk_3 - mutate()}
+# Transforming K rate from lbs/ac to kg/ha
+soyk_3  = mutate(soyk_1,
+                 k_rate_kgha = k_rate_lbac*0.454/0.405,
+                 k_rate_kgha = round(k_rate_kgha, 0)
+                 )
+
+soyk_3
+```
+
+```{r soyk_4 - case_when()}
+soyk_4 = mutate(soyk_3,
+                rep = case_when(
+                  plot > 100 & plot < 200 ~ 1,
+                  plot > 200 & plot < 300 ~ 2,
+                  plot > 300 & plot < 400 ~ 3,
+                  plot > 400 & plot < 500 ~ 4
+                  
+                )
+                ) %>%
+  mutate(plot_2 = as.character(plot)) %>%
+  mutate(plot_2 = stringr::str_extract(plot_2, ""))
+
+soyk_4
+
+```
+
+```{r soyk_5 - pivot_longer()}
+names(soyk_4)
+
+soyk_5 = pivot_longer(soyk_4,
+                      names_to = "location.k",
+                      values_to = "k_pct",
+                      cols = contains("_k_pct") # matching the pattern of the cols to be changed to long format
+                      
+                      ) # convert wide data format to long format
+
+soyk_5
+
+View(soyk_5)
+```
+
+```{r soyk_6 - separate()}
+soyk_6 = separate(soyk_5,
+                  location.k,
+                  into = c("location", "k", "pct")
+                  )
+
+soyk_6
+
+View(soyk_6)
+```
+
+```{r soyk_7 - select()}
+names(soyk_6)
+
+soyk_7 = dplyr::select(soyk_6,
+                location, rep, k_rate_kgha, k_pct
+                
+                )
+
+soyk_7
+```
+
+```{r soyk_8 - arrange()}
+soyk_8 = arrange(soyk_7, location)
+
+soyk_8
+```
+
+```{r soyk_9 and 10 - group_by and summarise}
+# group_by
+soyk_9 = group_by(soyk_8, location)
+
+soyk_9
+
+class(soyk_8)
+
+class(soyk_9)
+
+# summarise
+soyk_10 = summarise(soyk_9,
+                    mean_pct = mean(k_pct)
+                    
+                    )
+
+soyk_10
+```
+
+```{r Piping it all together}
+# Use data wrangling functions in a pipe workflow to generate the average k_pct for each K rate (in kg/ha) within each location (basically, averaging over reps)
+
+soyk_w = soyk %>%
+  clean_names() %>%
+  mutate(
+    k_rate_kgha = round(k_rate_lbac * 0.454 / 0.405, 0),
+    rep = case_when(
+      plot > 100 & plot < 200 ~ 1,
+      plot > 200 & plot < 300 ~ 2,
+      plot > 300 & plot < 400 ~ 3,
+      plot > 400 & plot < 500 ~ 4
+    )
+  ) %>%
+  pivot_longer(
+    cols = contains("k_pct"),
+    names_to = "location_k",
+    values_to = "k_pct"
+  ) %>%
+  separate(
+    location_k,
+    into = c("location", "k", "pct"),
+    sep = "_"
+  ) %>%
+  dplyr::select(location, rep, k_rate_kgha, k_pct) %>%
+  arrange(location, k_rate_kgha, rep) # %>%
+  # group_by(location, k_rate_kgha) %>%
+  # summarise(
+  #   mean_k_pct = mean(k_pct, na.rm = TRUE),
+  #   .groups = "drop"
+  # )
+
+
+soyk_w
+
+
+```
+
+```{r Checking if same as without pipe}
+# Same result?
+identical(soyk_8, soyk_w)
+
+```
+
+```{r Saving to file for further analysis}
+
+
+```
+
+# 3) Assignment   
+Starting from soyk, use data wrangling functions in a pipe workflow to generate the average k_pct for each K rate (in kg/ha) within each location (basically, averaging over reps). You can use the chunk below to complete this quiz.
+
+```{r assignment}
+soyk
+
+soyk_k = soyk %>%
+  clean_names() %>%
+  mutate(
+    k_rate_kgha = round(k_rate_lbac * 0.454 / 0.405, 0),
+    rep = case_when(
+      plot > 100 & plot < 200 ~ 1,
+      plot > 200 & plot < 300 ~ 2,
+      plot > 300 & plot < 400 ~ 3,
+      plot > 400 & plot < 500 ~ 4
+    )
+  ) %>%
+  pivot_longer(
+    cols = contains("k_pct"),
+    names_to = "location_k",
+    values_to = "k_pct"
+  ) %>%
+  separate(
+    location_k,
+    into = c("location", "k", "pct"),
+    sep = "_"
+  ) %>%
+  dplyr::select(location, rep, k_rate_kgha, k_pct) %>%
+  arrange(location, k_rate_kgha, rep) %>%
+  group_by(location, k_rate_kgha) %>%
+  summarise(
+    mean_k_pct = mean(k_pct, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+View(soyk_k)
+```
+
+
+Tip: the final data frame will have 16 rows.
+
+Submit your result (take a screenshot that includes the code and the chunk output) on eLC under Assignment #2 by Monday Jan 26th 11:59 pm.
+
+
+
